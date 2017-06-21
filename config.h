@@ -404,6 +404,15 @@ At this moment you can use this function only with WinGUI 2.3 release. MultiWiiC
     //#define SUMD PITCH,YAW,THROTTLE,ROLL,AUX1,AUX2,AUX3,AUX4
     //#define RX_SERIAL_PORT 1
 
+/*******************************    IBUS RECIVER    ************************************/
+      /* The following line apply only for FLYSKY IBus Receiver */
+      #define IBUS
+
+    #if defined(SPEKTRUM) | defined(SBUS) | defined(SUMD) | defined(IBUS)
+      #define RX_SERIAL
+      #define RX_SERIAL_PORT 1
+    #endif
+
 /*************************************************************************************************/
 /*****************                                                                 ***************/
 /****************  SECTION  4 - ALTERNATE CPUs & BOARDS                                    *******/
