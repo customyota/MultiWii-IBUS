@@ -33,6 +33,8 @@
   static uint8_t rcChannel[RC_CHANS] = {PITCH,YAW,THROTTLE,ROLL,AUX1,AUX2,AUX3,AUX4};
 #elif defined(SPEKTRUM)
   static uint8_t rcChannel[RC_CHANS] = {PITCH,YAW,THROTTLE,ROLL,AUX1,AUX2,AUX3,AUX4,8,9,10,11};
+#elif defined(IBUS)
+  static uint8_t rcChannel[RC_CHANS] = {ROLL,PITCH,THROTTLE,YAW,AUX1,AUX2,AUX3,AUX4};
 #else // Standard Channel order
   static uint8_t rcChannel[RC_CHANS]  = {ROLLPIN, PITCHPIN, YAWPIN, THROTTLEPIN, AUX1PIN,AUX2PIN,AUX3PIN,AUX4PIN};
   static uint8_t PCInt_RX_Pins[PCINT_PIN_COUNT] = {PCINT_RX_BITS}; // if this slowes the PCINT readings we can switch to a define for each pcint bit
@@ -107,6 +109,10 @@ void configureReceiver() {
         case 3: UCSR3C |= (1<<UPM31)|(1<<USBS3); break;
       #endif
     }
+  #endif
+  
+  #if defined(IBUS)
+    SerialOpen(RX_SERIAL_PORT,115200);
   #endif
 }
 
@@ -453,6 +459,50 @@ uint16_t readRawRC(uint8_t chan) {
   #endif
   return data; // We return the value correctly copied when the IRQ's where disabled
 }
+      
+/**************************************************************************************/
+/***************                    IBUS                           ********************/
+/**************************************************************************************/
+      
+#if defined(IBUS)
+#define IBUS_BUFFSIZE 32
+static uint8_t ibusIndex=0;
+static uint8_t ibus[IBUS_BUFFSIZE]={0}; 
+
+void readSerial_RX(void) 
+{
+  uint8_t i;
+  uint16_t chksum,rxsum;
+  while (SerialAvailable(RX_SERIAL_PORT)) 
+  {
+    uint8_t val = SerialRead(RX_SERIAL_PORT);
+    if(ibusIndex == 0 && val != 0x20) { continue; }
+    if(ibusIndex == 1 && val != 0x40) { ibusIndex = 0; continue; }
+    if(ibusIndex < IBUS_BUFFSIZE) ibus[ibusIndex] = val;
+    ibusIndex++;
+    
+    if(ibusIndex == IBUS_BUFFSIZE) 
+    {
+      ibusIndex = 0;
+      chksum = 0xFFFF;
+      for (i=0;i<30;i++) chksum -= ibus[i];
+      rxsum = ibus[30] + (ibus[31]<<8);
+      if (chksum == rxsum)
+      {
+        rcValue[0] = (ibus[ 3]<<8) + ibus[ 2]; 
+        rcValue[1] = (ibus[ 5]<<8) + ibus[ 4];
+        rcValue[2] = (ibus[ 7]<<8) + ibus[ 6];
+        rcValue[3] = (ibus[ 9]<<8) + ibus[ 8];
+        rcValue[4] = (ibus[11]<<8) + ibus[10];
+        rcValue[5] = (ibus[13]<<8) + ibus[12];
+        rcValue[6] = (ibus[15]<<8) + ibus[14];
+        rcValue[7] = (ibus[17]<<8) + ibus[16];      
+        spekFrameDone = 0x01;
+      }
+    }
+  }
+}
+#endif
 
 /**************************************************************************************/
 /***************          compute and Filter the RX data           ********************/
